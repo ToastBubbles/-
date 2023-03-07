@@ -2,6 +2,23 @@
 const https = require("https");
 const headers = require("./headers");
 var HTMLParser = require("node-html-parser");
+const translate = require("translate-google");
+// const tranObj = {
+//   a: 1,
+//   b: "1",
+//   c: "How are you?\nI'm nice.",
+//   d: [true, "true", "hi", { a: "hello", b: ["world"] }],
+// };
+
+function trans(str) {
+  translate(str, { to: "en", except: ["a"] })
+    .then((res) => {
+      console.log(res);
+    })
+    .catch((err) => {
+      console.error(err);
+    });
+}
 
 async function doSearch(keyword, page) {
   return new Promise((resolve, reject) => {
@@ -36,7 +53,7 @@ async function doSearch(keyword, page) {
                 var root = HTMLParser.parse(data);
                 let thisss = root.querySelectorAll(".name");
                 for (let item of thisss) {
-                  console.log(item.textContent);
+                  trans(item.textContent);
                 }
                 // console.log(root.querySelectorAll(".name"));
                 // console.log(data);
