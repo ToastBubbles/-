@@ -3,14 +3,8 @@ const https = require("https");
 const headers = require("./headers");
 var HTMLParser = require("node-html-parser");
 const translate = require("translate-google");
-// const tranObj = {
-//   a: 1,
-//   b: "1",
-//   c: "How are you?\nI'm nice.",
-//   d: [true, "true", "hi", { a: "hello", b: ["world"] }],
-// };
 
-function trans(str) {
+function toEnglish(str) {
   translate(str, { to: "en", except: ["a"] })
     .then((res) => {
       console.log(res);
@@ -19,13 +13,16 @@ function trans(str) {
       console.error(err);
     });
 }
+function format(str) {
+  return str.replaceAll(" ", "%20");
+}
 
 async function doSearch(keyword, page) {
   return new Promise((resolve, reject) => {
     try {
       const options = {
         host: `buyee.jp`,
-        path: `/mercari/search?keyword=${keyword}&page=${page}`,
+        path: `/mercari/search?keyword=${format(keyword)}&page=${page}`,
         headers: {
           "User-Agent": generateHeader(),
         },
@@ -46,19 +43,13 @@ async function doSearch(keyword, page) {
                 if (data === "") {
                   throw "empty string";
                 }
-                // console.log(JSON.parse(data));
-                // filterComments(JSON.parse(data), partId);
-                // resolve(JSON.parse(data));
 
                 var root = HTMLParser.parse(data);
                 let thisss = root.querySelectorAll(".name");
                 for (let item of thisss) {
-                  trans(item.textContent);
+                  toEnglish(item.textContent);
                 }
-                // console.log(root.querySelectorAll(".name"));
-                // console.log(data);
               });
-              // }
             }
           }
         )
@@ -76,4 +67,4 @@ function generateHeader() {
   return headers.heads[Math.round(Math.random() * (headers.heads.length - 1))];
 }
 
-doSearch("lego", 1);
+doSearch("lego 4411", 1);
