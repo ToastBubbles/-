@@ -3,11 +3,13 @@ const https = require("https");
 const headers = require("./headers");
 var HTMLParser = require("node-html-parser");
 const translate = require("translate-google");
+const fs = require("fs");
 // const { st } = require("translate-google/languages");
 
+let cachedInventory = {};
 const queries = [
   //   "lego 4411",
-  //   "lego X-Tracker",
+  // "lego X-Tracker",
   "lego watch",
   //   "lego little robots",
   //   "レゴ ウォッチ",
@@ -17,7 +19,7 @@ const queries = [
 function toEnglish(str, price) {
   translate(str, { to: "en", except: ["a"] })
     .then((res) => {
-      console.log(res + " " + price);
+      return res + " " + price;
     })
     .catch((err) => {
       console.error(err);
@@ -44,6 +46,7 @@ async function doSearch(keyword, page) {
           options,
 
           (resp) => {
+            let id = "";
             console.log(resp.statusCode);
             if (resp.statusCode == 200) {
               let data = "";
@@ -62,9 +65,28 @@ async function doSearch(keyword, page) {
                 // console.log(data);
                 let i = 0;
                 for (let item of arrOfNodes) {
+                  let imageURL = "https:";
+                  // console.log(item)
                   // toEnglish(item.textContent, arrOfPrices[i].textContent);
-                  console.log(arrOfImgs[i].getAttribute("data-bind"));
 
+                  imageURL += arrOfImgs[i]
+                    .getAttribute("data-bind")
+                    .substring(
+                      arrOfImgs[i].getAttribute("data-bind").indexOf("//s"),
+                      arrOfImgs[i].getAttribute("data-bind").indexOf("',")
+                    );
+
+                  let id = imageURL.substring(48, 60);
+                  toEnglish(item.textContent, arrOfPrices[i].textContent).then(
+                    (name) => {
+                      checkId(id, {
+                        id,
+                        name,
+                        imageURL,
+                      });
+                    }
+                  );
+                  // console.log(id);
                   i++;
                 }
                 resolve();
@@ -100,5 +122,82 @@ async function start() {
     await doSearch(q, 1);
   }
 }
-start();
+
+function checkForSave() {
+  try {
+    return fs.existsSync("save.json");
+  } catch (e) {
+    console.log(e);
+  }
+}
+function load() {
+  if (checkForSave()) {
+    try {
+      let rawdata = fs.readFileSync("save.json");
+      let localInfo = JSON.parse(rawdata);
+      cachedInventory = localInfo;
+    } catch (e) {
+      console.log(e);
+    } finally {
+      start();
+    }
+  } else {
+    save().then(() => start());
+  }
+}
+async function save() {
+  let data = JSON.stringify(cachedInventory);
+  try {
+    await fs.writeFileSync("save.json", data);
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+load();
+
+function checkId(partInfo) {
+  // console.log(`checkid ${partNo} ${partCol}`)
+  console.log(partInfo.id, partInfo.name, partInfo.imageURL);
+  let thisRef = null;
+  let message = ``;
+  let output = [];
+  if (cachedInventory[mercariId] == undefined) {
+    cachedInventory[mercariId] = [];
+  }
+  for (let cached of cachedInventory[mercariId]) {
+    if (cached == partInfo.id) {
+      thisRef = cached;
+    }
+  }
+  if (thisRef == null) {
+    cachedInventory[mercariId].push(partInfo.id);
+    thisRef = cachedInventory[mercariId][cachedInventory[mercariId].length - 1];
+    output.push(partInfo.id);
+  }
+  // console.log(arr)
+  // for (let listing of arr) {
+  //   if (!thisRef.cachedIds.includes()) {
+  //     console.log(
+  //       `New ${partCol} ${partName} listed! Seller's note: ${
+  //         listing.strDesc && "None"
+  //       } `
+  //     );
+  //     message += `New ${partCol} ${partName} listed!\n'${
+  //       listing.strStorename
+  //     }' note: ${listing.strDesc && "None"} \n${listing.n4Qty} for ${
+  //       listing.mDisplaySalePrice
+  //     }\n`;
+  //     output.push(listing);
+  //     thisRef.cachedIds.push(listing.idInv);
+  //   }
+  // }
+  // if (output.length >= 1) {
+  //   // if (canEmail) {
+  //   //   sendEmail(message, partInfo[mercariId].num, partCol);
+  //   // }
+  // }
+  save();
+}
+
 // doSearch("lego 4411", 1);
