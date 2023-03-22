@@ -4,6 +4,7 @@ const headers = require("./headers");
 var HTMLParser = require("node-html-parser");
 const translate = require("translate-google");
 const fs = require("fs");
+// const { co } = require("translate-google/languages");
 // const { st } = require("translate-google/languages");
 
 let cachedInventory = {};
@@ -16,19 +17,22 @@ const queries = [
   //   "レゴリトルロボット",
 ];
 
-function toEnglish(str, price) {
-  translate(str, { to: "en", except: ["a"] })
-    .then((res) => {
-      return res + " " + price;
-    })
-    .catch((err) => {
-      console.error(err);
-    });
+async function toEnglish(str, price) {
+  return new Promise((resolve, reject) => {
+    translate(str, { to: "en", except: ["a"] })
+      .then((res) => {
+        resolve(res + " " + price);
+      })
+      .catch((err) => {
+        console.error(err);
+        reject(err);
+      });
+  });
 }
 function format(str) {
   return str.replaceAll(" ", "%20");
 }
-
+let out = [];
 async function doSearch(keyword, page) {
   return new Promise((resolve, reject) => {
     // let debug =
@@ -78,22 +82,38 @@ async function doSearch(keyword, page) {
 
                   let id = imageURL.substring(48, 60);
                   toEnglish(item.textContent, arrOfPrices[i].textContent).then(
+                    // return Promise.all(
                     (name) => {
-                      checkId(id, {
+                      checkId({
                         id,
                         name,
                         imageURL,
+                      }).then((available) => {
+                        // console.log(available);
+                        // handleFoundListings(available)
+                        if (available.length > 0) {
+                          for (let a of available) {
+                            // console.log(a);
+                            out.push(a);
+                          }
+                        }
                       });
                     }
                   );
-                  // console.log(id);
                   i++;
                 }
-                resolve();
+                // if (i == arrOfPrices.length) {
+                resolve(out);
+                // }
               });
             }
+            // console.log(out);
+            // if (out.length > 0) {
+            //   handleFoundListings(out);
+            // }
           }
         )
+
         // <div class="thumbnail-area  ">
         // <img class="thumbnail"
         // alt="LEGO レゴ 7446 littlerobots レア"
@@ -114,12 +134,23 @@ async function doSearch(keyword, page) {
     }
   });
 }
+
+function handleFoundListings(listings) {
+  console.log("done");
+  console.log(listings);
+  for (let listing of listings) {
+    console.log(listing.name);
+  }
+}
 function generateHeader() {
   return headers.heads[Math.round(Math.random() * (headers.heads.length - 1))];
 }
 async function start() {
   for (let q of queries) {
-    await doSearch(q, 1);
+    await doSearch(q, 1).then((output) => {
+      console.log(output);
+      output.length > 0 && handleFoundListings(output);
+    });
   }
 }
 
@@ -157,47 +188,58 @@ async function save() {
 load();
 
 function checkId(partInfo) {
-  // console.log(`checkid ${partNo} ${partCol}`)
-  console.log(partInfo.id, partInfo.name, partInfo.imageURL);
-  let thisRef = null;
-  let message = ``;
-  let output = [];
-  if (cachedInventory[mercariId] == undefined) {
-    cachedInventory[mercariId] = [];
-  }
-  for (let cached of cachedInventory[mercariId]) {
-    if (cached == partInfo.id) {
-      thisRef = cached;
+  return new Promise((resolve, reject) => {
+    // console.log(`checkid ${partNo} ${partCol}`)
+    // console.log(partInfo.id, partInfo.name, partInfo.imageURL);
+    let thisRef = null;
+    let message = ``;
+    let output = [];
+    if (cachedInventory.mercariId == undefined) {
+      cachedInventory.mercariId = [];
     }
-  }
-  if (thisRef == null) {
-    cachedInventory[mercariId].push(partInfo.id);
-    thisRef = cachedInventory[mercariId][cachedInventory[mercariId].length - 1];
-    output.push(partInfo.id);
-  }
-  // console.log(arr)
-  // for (let listing of arr) {
-  //   if (!thisRef.cachedIds.includes()) {
-  //     console.log(
-  //       `New ${partCol} ${partName} listed! Seller's note: ${
-  //         listing.strDesc && "None"
-  //       } `
-  //     );
-  //     message += `New ${partCol} ${partName} listed!\n'${
-  //       listing.strStorename
-  //     }' note: ${listing.strDesc && "None"} \n${listing.n4Qty} for ${
-  //       listing.mDisplaySalePrice
-  //     }\n`;
-  //     output.push(listing);
-  //     thisRef.cachedIds.push(listing.idInv);
-  //   }
-  // }
-  // if (output.length >= 1) {
-  //   // if (canEmail) {
-  //   //   sendEmail(message, partInfo[mercariId].num, partCol);
-  //   // }
-  // }
-  save();
+
+    for (let cached of cachedInventory.mercariId) {
+      if (cached == partInfo.id) {
+        thisRef = cached;
+      }
+    }
+    if (thisRef == null) {
+      cachedInventory.mercariId.push(partInfo.id);
+      thisRef = cachedInventory.mercariId[cachedInventory.mercariId.length - 1];
+      output.push(partInfo);
+    }
+    // if (output.length > 0) {
+    //   console.log("new listings found.");
+    //   for (let listing of output) {
+    //     console.log(listing.name);
+    //   }
+    // }
+
+    // console.log(arr)
+    // for (let listing of arr) {
+    //   if (!thisRef.cachedIds.includes()) {
+    //     console.log(
+    //       `New ${partCol} ${partName} listed! Seller's note: ${
+    //         listing.strDesc && "None"
+    //       } `
+    //     );
+    //     message += `New ${partCol} ${partName} listed!\n'${
+    //       listing.strStorename
+    //     }' note: ${listing.strDesc && "None"} \n${listing.n4Qty} for ${
+    //       listing.mDisplaySalePrice
+    //     }\n`;
+    //     output.push(listing);
+    //     thisRef.cachedIds.push(listing.idInv);
+    //   }
+    // }
+    // if (output.length >= 1) {
+    //   // if (canEmail) {
+    //   //   sendEmail(message, partInfo[mercariId].num, partCol);
+    //   // }
+    // }
+    save();
+    resolve(output);
+  });
 }
 
 // doSearch("lego 4411", 1);
