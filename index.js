@@ -93,7 +93,7 @@ async function doSearch(keyword, page) {
                         // handleFoundListings(available)
                         if (available.length > 0) {
                           for (let a of available) {
-                            // console.log(a);
+                            console.log(a);
                             out.push(a);
                           }
                         }
@@ -106,6 +106,8 @@ async function doSearch(keyword, page) {
                 resolve(out);
                 // }
               });
+            } else {
+              resolve([]);
             }
             // console.log(out);
             // if (out.length > 0) {
@@ -145,10 +147,10 @@ function handleFoundListings(listings) {
 function generateHeader() {
   return headers.heads[Math.round(Math.random() * (headers.heads.length - 1))];
 }
-async function start() {
+function start() {
   for (let q of queries) {
-    await doSearch(q, 1).then((output) => {
-      console.log(output);
+    doSearch(q, 1).then((output) => {
+      console.log("final output: ", output);
       output.length > 0 && handleFoundListings(output);
     });
   }
@@ -165,6 +167,7 @@ function load() {
   if (checkForSave()) {
     try {
       let rawdata = fs.readFileSync("save.json");
+      // console.log(rawdata);
       let localInfo = JSON.parse(rawdata);
       cachedInventory = localInfo;
     } catch (e) {
