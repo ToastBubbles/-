@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "encoding-japanese": "^2.0.0",
     "node": "^19.6.1",
     "node-html-parser": "^6.1.5",
     "translate-google": "^1.5.0"
